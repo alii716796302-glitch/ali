@@ -1,3 +1,4 @@
+# main.py - النسخة المعدلة مع تحكم دقيق بوضع الذكاء الاصطناعي
 
 import asyncio
 import io
@@ -6,7 +7,6 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 from telegram.constants import ParseMode
 from config import BOT_TOKEN, CHANNEL_USERNAME, DEVELOPER_ID
 from db import init_db, add_admin, is_user_admin, get_remaining_time, get_setting, get_all_users
-# استيرادات مباشرة من الملفات الفردية (بدون مجلد handlers)
 from start import start, check_sub_cb
 from ai import ask_ai, handle_ai_msg
 from image import gen_img_cmd, edit_img_cmd, handle_photo, img_edit_cb, handle_edit_input, handle_gen_img
@@ -47,18 +47,41 @@ async def main_handler(update: Update, context):
     text = update.message.text
     is_admin = is_user_admin(user_id)
 
+    # ============================================================
+    # 1️⃣ زر "اسأل الذكاء الاصطناعي" - يفتح المحادثة
+    # ============================================================
     if text == "🤖 اسأل الذكاء الاصطناعي":
+        # إيقاف أي وضع آخر (توليد صورة، تعديل، صوت)
+        context.user_data.pop('gen_img', None)
+        context.user_data.pop('edit_img', None)
+        context.user_data.pop('edit_action', None)
+        context.user_data.pop('img_data', None)
+        context.user_data.pop('tts_mode', None)
+        context.user_data.pop('tts_voice', None)
+        context.user_data.pop('voice_select', None)
+        # فتح الذكاء الاصطناعي
         await ask_ai(update, context)
         return
+
+    # ============================================================
+    # 2️⃣ الأزرار الأخرى - تُوقف الذكاء الاصطناعي وتنفذ الأمر
+    # ============================================================
     if text == "🎨 توليد صورة":
+        # إيقاف الذكاء الاصطناعي
+        context.user_data.pop('ai_mode', None)
         await gen_img_cmd(update, context)
         return
+
     if text == "📷 تعديل صورة":
+        context.user_data.pop('ai_mode', None)
         await edit_img_cmd(update, context)
         return
+
     if text == "🎙️ تحويل صوت":
+        context.user_data.pop('ai_mode', None)
         await tts_cmd(update, context)
         return
+
     if text == "📅 حالة الاشتراك":
         rem = get_remaining_time(user_id)
         if rem and rem > 0:
@@ -72,12 +95,14 @@ async def main_handler(update: Update, context):
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💎 تفعيل الاشتراك", callback_data="subscribe")]])
             )
         return
+
     if text == "📢 قناة البوت":
         await update.message.reply_text(
             f"📢 قناة البوت: {CHANNEL_USERNAME}",
             reply_markup=main_kb(user_id, is_admin)
         )
         return
+
     if text == "💎 تفعيل الاشتراك":
         rem = get_remaining_time(user_id)
         if rem and rem > 0:
@@ -96,9 +121,11 @@ async def main_handler(update: Update, context):
             ])
         )
         return
+
     if text == "👤 المطور":
         await dev_cmd(update, context)
         return
+
     if text == "👑 لوحة التحكم":
         if is_admin or user_id == DEVELOPER_ID:
             await admin_panel(update, context)
@@ -109,6 +136,9 @@ async def main_handler(update: Update, context):
             )
         return
 
+    # ============================================================
+    # 3️⃣ الأوامر الإدارية (للمشرفين فقط)
+    # ============================================================
     if is_admin or user_id == DEVELOPER_ID:
         await handle_admin_text(update, context)
         if any(k in context.user_data for k in [
@@ -119,19 +149,47 @@ async def main_handler(update: Update, context):
         ]):
             return
 
+    # ============================================================
+    # 4️⃣ وضع الذكاء الاصطناعي (فقط إذا كان مفعلاً)
+    # ============================================================
     if context.user_data.get('ai_mode'):
+        # أوامر الخروج من المحادثة
+        if text in ["رجوع", "/end", "خروج", "إنهاء", "🔙"]:
+            await update.message.reply_text(
+                "🔙 تم إنهاء المحادثة.",
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=main_kb(user_id, is_admin)
+            )
+            context.user_data['ai_mode'] = False
+            from ai import clear_context
+            clear_context(user_id)
+            return
+        # معالجة السؤال
         await handle_ai_msg(update, context)
         return
 
+    # ============================================================
+    # 5️⃣ توليد صورة (إذا كان الوضع مفعلاً)
+    # ============================================================
     if await handle_gen_img(update, context):
         return
+
+    # ============================================================
+    # 6️⃣ تحويل صوت (إذا كان الوضع مفعلاً)
+    # ============================================================
     if await handle_tts_text(update, context):
         return
 
+    # ============================================================
+    # 7️⃣ تعديل الصورة - مدخلات المستخدم
+    # ============================================================
     if context.user_data.get('edit_action'):
         await handle_edit_input(update, context)
         return
 
+    # ============================================================
+    # 8️⃣ أي رسالة أخرى (غير معروفة)
+    # ============================================================
     if len(text) > 2 and not text.startswith('/'):
         await update.message.reply_text(
             "👋 اضغط **أسأل الذكاء الاصطناعي** لبدء محادثة.",
