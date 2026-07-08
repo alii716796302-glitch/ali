@@ -1,4 +1,4 @@
-# main.py - التعديل لإبقاء اللوحة الرئيسية ثابتة في جميع الأوضاع
+# main.py - نسخة معدلة مع إبقاء اللوحة الرئيسية ثابتة في جميع الأوضاع
 
 import asyncio
 import io
@@ -47,8 +47,9 @@ async def main_handler(update: Update, context):
     text = update.message.text
     is_admin = is_user_admin(user_id)
 
-    # 1️⃣ الأزرار الرئيسية
+    # 1️⃣ الأزرار الرئيسية (تُعالج أولاً)
     if text == "🤖 اسأل الذكاء الاصطناعي":
+        # إلغاء أي وضع نشط
         context.user_data.pop('gen_img', None)
         context.user_data.pop('edit_img', None)
         context.user_data.pop('edit_action', None)
@@ -132,7 +133,7 @@ async def main_handler(update: Update, context):
             )
         return
 
-    # 2️⃣ الأوامر الإدارية
+    # 2️⃣ الأوامر الإدارية (للمشرفين فقط)
     if is_admin or user_id == DEVELOPER_ID:
         await handle_admin_text(update, context)
         if any(k in context.user_data for k in [
@@ -170,7 +171,7 @@ async def main_handler(update: Update, context):
         await handle_ai_msg(update, context)
         return
 
-    # 5️⃣ أي رسالة أخرى
+    # 5️⃣ أي رسالة أخرى (غير معروفة)
     if len(text) > 2 and not text.startswith('/'):
         await update.message.reply_text(
             "👋 اضغط **أسأل الذكاء الاصطناعي** لبدء محادثة.",
