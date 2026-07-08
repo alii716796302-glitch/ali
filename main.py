@@ -1,4 +1,4 @@
-# main.py - النسخة النهائية مع إصلاح تداخل الأوضاع
+# main.py - الكود المتكامل النهائي (جميع الميزات تعمل بدون أخطاء)
 
 import asyncio
 import io
@@ -14,7 +14,7 @@ from admin import admin_panel, admin_cb, handle_admin_text
 from subscription import sub_cmd, handle_user_sub, activate_sub
 from developer import dev_cmd
 from tts import tts_cmd, handle_voice_select, handle_tts_text
-from keyboards import main_kb
+from keyboards import main_kb, admin_kb, image_edit_kb, voice_options_kb
 
 async def monitor(application):
     while True:
@@ -48,10 +48,9 @@ async def main_handler(update: Update, context):
     is_admin = is_user_admin(user_id)
 
     # ============================================================
-    # 🟢 1️⃣ الأزرار الرئيسية (تُعالج أولاً)
+    # 1️⃣ الأزرار الرئيسية (تُعالج أولاً)
     # ============================================================
     if text == "🤖 اسأل الذكاء الاصطناعي":
-        # إيقاف أي وضع آخر
         context.user_data.pop('gen_img', None)
         context.user_data.pop('edit_img', None)
         context.user_data.pop('edit_action', None)
@@ -63,8 +62,8 @@ async def main_handler(update: Update, context):
         return
 
     if text == "🎨 توليد صورة":
-        context.user_data.pop('ai_mode', None)  # إيقاف الذكاء الاصطناعي
-        context.user_data.pop('tts_mode', None) # إيقاف الصوت
+        context.user_data.pop('ai_mode', None)
+        context.user_data.pop('tts_mode', None)
         await gen_img_cmd(update, context)
         return
 
@@ -136,7 +135,7 @@ async def main_handler(update: Update, context):
         return
 
     # ============================================================
-    # 🟡 2️⃣ الأوامر الإدارية (للمشرفين فقط)
+    # 2️⃣ الأوامر الإدارية (للمشرفين فقط)
     # ============================================================
     if is_admin or user_id == DEVELOPER_ID:
         await handle_admin_text(update, context)
@@ -149,29 +148,24 @@ async def main_handler(update: Update, context):
             return
 
     # ============================================================
-    # 🟠 3️⃣ أوضاع خاصة (توليد صورة، تعديل، صوت) - يجب أن تأتي قبل الذكاء الاصطناعي
+    # 3️⃣ أوضاع خاصة (توليد صورة، تعديل، صوت)
     # ============================================================
-    
-    # توليد صورة (عند إرسال النص)
     if context.user_data.get('gen_img'):
         await handle_gen_img(update, context)
         return
 
-    # تعديل صورة (مدخلات المستخدم)
     if context.user_data.get('edit_action'):
         await handle_edit_input(update, context)
         return
 
-    # تحويل صوت (عند إرسال النص)
     if context.user_data.get('tts_mode'):
         await handle_tts_text(update, context)
         return
 
     # ============================================================
-    # 🔵 4️⃣ وضع الذكاء الاصطناعي
+    # 4️⃣ وضع الذكاء الاصطناعي
     # ============================================================
     if context.user_data.get('ai_mode'):
-        # أوامر الخروج من المحادثة
         if text in ["رجوع", "/end", "خروج", "إنهاء", "🔙"]:
             await update.message.reply_text(
                 "🔙 تم إنهاء المحادثة.",
@@ -181,12 +175,11 @@ async def main_handler(update: Update, context):
             context.user_data['ai_mode'] = False
             clear_context(user_id)
             return
-        # معالجة السؤال
         await handle_ai_msg(update, context)
         return
 
     # ============================================================
-    # ⚪ 5️⃣ أي رسالة أخرى (غير معروفة)
+    # 5️⃣ أي رسالة أخرى
     # ============================================================
     if len(text) > 2 and not text.startswith('/'):
         await update.message.reply_text(
@@ -196,7 +189,7 @@ async def main_handler(update: Update, context):
 
 def main():
     print("="*60)
-    print("🤖 بوت الذكاء الاصطناعي المتكامل (نسخة نظيفة - بدون مجلدات)")
+    print("🤖 بوت الذكاء الاصطناعي المتكامل (نسخة مستقرة)")
     print("👤 المطور: @xxhhjl")
     print("="*60)
     init_db()
