@@ -1,4 +1,4 @@
-# main.py - الكود المتكامل النهائي (جميع الميزات تعمل بدون أخطاء)
+# main.py - التعديل لإبقاء اللوحة الرئيسية ثابتة في جميع الأوضاع
 
 import asyncio
 import io
@@ -47,9 +47,7 @@ async def main_handler(update: Update, context):
     text = update.message.text
     is_admin = is_user_admin(user_id)
 
-    # ============================================================
-    # 1️⃣ الأزرار الرئيسية (تُعالج أولاً)
-    # ============================================================
+    # 1️⃣ الأزرار الرئيسية
     if text == "🤖 اسأل الذكاء الاصطناعي":
         context.user_data.pop('gen_img', None)
         context.user_data.pop('edit_img', None)
@@ -134,9 +132,7 @@ async def main_handler(update: Update, context):
             )
         return
 
-    # ============================================================
-    # 2️⃣ الأوامر الإدارية (للمشرفين فقط)
-    # ============================================================
+    # 2️⃣ الأوامر الإدارية
     if is_admin or user_id == DEVELOPER_ID:
         await handle_admin_text(update, context)
         if any(k in context.user_data for k in [
@@ -147,9 +143,7 @@ async def main_handler(update: Update, context):
         ]):
             return
 
-    # ============================================================
     # 3️⃣ أوضاع خاصة (توليد صورة، تعديل، صوت)
-    # ============================================================
     if context.user_data.get('gen_img'):
         await handle_gen_img(update, context)
         return
@@ -162,9 +156,7 @@ async def main_handler(update: Update, context):
         await handle_tts_text(update, context)
         return
 
-    # ============================================================
     # 4️⃣ وضع الذكاء الاصطناعي
-    # ============================================================
     if context.user_data.get('ai_mode'):
         if text in ["رجوع", "/end", "خروج", "إنهاء", "🔙"]:
             await update.message.reply_text(
@@ -178,9 +170,7 @@ async def main_handler(update: Update, context):
         await handle_ai_msg(update, context)
         return
 
-    # ============================================================
     # 5️⃣ أي رسالة أخرى
-    # ============================================================
     if len(text) > 2 and not text.startswith('/'):
         await update.message.reply_text(
             "👋 اضغط **أسأل الذكاء الاصطناعي** لبدء محادثة.",
@@ -189,7 +179,7 @@ async def main_handler(update: Update, context):
 
 def main():
     print("="*60)
-    print("🤖 بوت الذكاء الاصطناعي المتكامل (نسخة مستقرة)")
+    print("🤖 بوت الذكاء الاصطناعي المتكامل (لوحة ثابتة)")
     print("👤 المطور: @xxhhjl")
     print("="*60)
     init_db()

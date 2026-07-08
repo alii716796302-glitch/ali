@@ -1,3 +1,5 @@
+ # image.py - تعديل لإبقاء اللوحة الرئيسية ثابتة
+
 import io
 from telegram import Update, InputFile, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
@@ -16,7 +18,7 @@ async def gen_img_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not remaining or remaining <= 0:
         await update.message.reply_text("⏰ انتهى اشتراكك.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💎 اشترك", callback_data="subscribe")]]))
         return
-    await update.message.reply_text("🎨 أرسل وصفاً للصورة.", reply_markup=remove_kb())
+    await update.message.reply_text("🎨 أرسل وصفاً للصورة.", reply_markup=main_kb(user_id, is_user_admin(user_id)))
     context.user_data['gen_img'] = True
 
 async def edit_img_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -28,7 +30,8 @@ async def edit_img_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not remaining or remaining <= 0:
         await update.message.reply_text("⏰ انتهى اشتراكك.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("💎 اشترك", callback_data="subscribe")]]))
         return
-    await update.message.reply_text("📷 أرسل الصورة.", reply_markup=remove_kb())
+    # ✅ إبقاء اللوحة الرئيسية ظاهرة
+    await update.message.reply_text("📷 أرسل الصورة التي تريد تعديلها.", reply_markup=main_kb(user_id, is_user_admin(user_id)))
     context.user_data['edit_img'] = True
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -46,6 +49,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data = await f.download_as_bytearray()
         context.user_data['img_data'] = data
         context.user_data['edit_img'] = True
+        # ✅ عرض أزرار التعديل مع إبقاء اللوحة الرئيسية
         await update.message.reply_text("✅ تم استلام الصورة! اختر التعديل:", reply_markup=image_edit_kb())
     else:
         await update.message.reply_text("📷 لإرسال صورة للتعديل، اضغط أولاً على **📷 تعديل صورة**.", reply_markup=main_kb(user_id, is_user_admin(user_id)))
@@ -80,7 +84,8 @@ async def img_edit_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "edit_watermark": "📌 أرسل النص",
             "edit_compress": "📦 أرسل الجودة (1-100) مثال: 50"
         }
-        await q.edit_message_text(msgs[data])
+        # ✅ إبقاء اللوحة الرئيسية ظاهرة
+        await q.edit_message_text(msgs[data], reply_markup=main_kb(user_id, is_admin))
         context.user_data['edit_action'] = data.replace("edit_", "")
         return
     await q.edit_message_text("⏳ جاري التعديل...")
@@ -95,6 +100,7 @@ async def img_edit_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
             res = funcs[data](img_data)
             await context.bot.send_photo(chat_id=q.message.chat_id, photo=InputFile(io.BytesIO(res), "edited.png"), caption="✅ تم التعديل!")
             await q.delete_message()
+            # ✅ إبقاء اللوحة الرئيسية مع أزرار التعديل
             await context.bot.send_message(chat_id=q.message.chat_id, text="📷 اختر تعديلاً آخر:", reply_markup=image_edit_kb())
         else:
             await q.edit_message_text("❌ تعديل غير معروف.", reply_markup=image_edit_kb())
@@ -137,6 +143,7 @@ async def handle_edit_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ إجراء غير معروف.", reply_markup=image_edit_kb())
             return
         await context.bot.send_photo(chat_id=update.message.chat_id, photo=InputFile(io.BytesIO(res), "edited.png"), caption="✅ تم التعديل!")
+        # ✅ إبقاء اللوحة الرئيسية مع أزرار التعديل
         await context.bot.send_message(chat_id=update.message.chat_id, text="📷 اختر تعديلاً آخر:", reply_markup=image_edit_kb())
     except Exception as e:
         await update.message.reply_text(f"❌ خطأ: {e}", reply_markup=image_edit_kb())
@@ -156,6 +163,7 @@ async def handle_gen_img(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await context.bot.edit_message_text("❌ فشل توليد الصورة.", chat_id=update.message.chat_id, message_id=msg.message_id)
         context.user_data.pop('gen_img', None)
+        # ✅ إبقاء اللوحة الرئيسية ظاهرة
         await context.bot.send_message(chat_id=update.message.chat_id, text="📋 القائمة الرئيسية:", reply_markup=main_kb(user_id, is_user_admin(user_id)))
         return True
     return False
