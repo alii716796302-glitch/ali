@@ -1,3 +1,4 @@
+
 import asyncio
 import io
 from telegram import Update, InputFile, InlineKeyboardMarkup, InlineKeyboardButton
@@ -5,7 +6,14 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 from telegram.constants import ParseMode
 from config import BOT_TOKEN, CHANNEL_USERNAME, DEVELOPER_ID
 from db import init_db, add_admin, is_user_admin, get_remaining_time, get_setting, get_all_users
-from handlers import *
+# استيرادات مباشرة من الملفات الفردية (بدون مجلد handlers)
+from start import start, check_sub_cb
+from ai import ask_ai, handle_ai_msg
+from image import gen_img_cmd, edit_img_cmd, handle_photo, img_edit_cb, handle_edit_input, handle_gen_img
+from admin import admin_panel, admin_cb, handle_admin_text
+from subscription import sub_cmd, handle_user_sub, activate_sub
+from developer import dev_cmd
+from tts import tts_cmd, handle_voice_select, handle_tts_text
 from keyboards import main_kb
 
 async def monitor(application):
@@ -132,7 +140,7 @@ async def main_handler(update: Update, context):
 
 def main():
     print("="*60)
-    print("🤖 بوت الذكاء الاصطناعي المتكامل (نسخة نظيفة)")
+    print("🤖 بوت الذكاء الاصطناعي المتكامل (نسخة نظيفة - بدون مجلدات)")
     print("👤 المطور: @xxhhjl")
     print("="*60)
     init_db()
