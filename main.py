@@ -132,15 +132,16 @@ async def main_handler(update: Update, context):
             )
         return
 
-    # 2️⃣ الأوامر الإدارية
+    # 2️⃣ الأوامر الإدارية (مع التحقق من وجود وضع نشط)
     if is_admin or user_id == DEVELOPER_ID:
-        await handle_admin_text(update, context)
-        if any(k in context.user_data for k in [
+        admin_modes = [
             'broadcast_mode', 'add_ch_mode', 'add_admin_mode', 'ban_mode',
             'unban_mode', 'activate_sub_mode', 'set_trial_mode',
             'set_price_monthly_mode', 'set_price_yearly_mode',
             'set_days_mode', 'set_warning_mode'
-        ]):
+        ]
+        if any(k in context.user_data for k in admin_modes):
+            await handle_admin_text(update, context)
             return
 
     # 3️⃣ أوضاع خاصة (توليد صورة، تعديل، صوت)
