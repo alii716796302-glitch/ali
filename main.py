@@ -1,4 +1,4 @@
-# main.py - التعديل لإبقاء اللوحة الرئيسية ثابتة في جميع الأوضاع
+# main.py - مع إضافة مسح ai_mode عند الضغط على أي زر (عدا زر الذكاء الاصطناعي)
 
 import asyncio
 import io
@@ -6,7 +6,7 @@ from telegram import Update, InputFile, InlineKeyboardMarkup, InlineKeyboardButt
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from telegram.constants import ParseMode
 from config import BOT_TOKEN, CHANNEL_USERNAME, DEVELOPER_ID
-from db import init_db, add_admin, is_user_admin, get_remaining_time, get_setting, get_all_users
+from db import init_db, add_admin, is_user_admin, get_remaining_time, get_setting, get_all_users, add_user, is_user_banned
 from start import start, check_sub_cb
 from ai import ask_ai, handle_ai_msg, clear_context
 from image import gen_img_cmd, edit_img_cmd, handle_photo, img_edit_cb, handle_edit_input, handle_gen_img
@@ -44,11 +44,16 @@ async def monitor(application):
 
 async def main_handler(update: Update, context):
     user_id = update.effective_user.id
-    text = update.message.text
-    is_admin = is_user_admin(user_id)
+    if is_user_banned(user_id):
+        await update.message.reply_text("🚫 محظور.", reply_markup=main_kb(user_id, False))
+        return
 
-    # 1️⃣ الأزرار الرئيسية
+    text = update.message.text
+    is_admin = is_user_admin(user_id) or (user_id == DEVELOPER_ID)
+
+    # ========== الأزرار الرئيسية ==========
     if text == "🤖 اسأل الذكاء الاصطناعي":
+        # مسح أي وضع آخر وتفعيل الذكاء الاصطناعي
         context.user_data.pop('gen_img', None)
         context.user_data.pop('edit_img', None)
         context.user_data.pop('edit_action', None)
@@ -59,6 +64,7 @@ async def main_handler(update: Update, context):
         await ask_ai(update, context)
         return
 
+    # جميع الأزرار الأخرى: نمسح ai_mode أولاً ثم ننفذ الأمر
     if text == "🎨 توليد صورة":
         context.user_data.pop('ai_mode', None)
         context.user_data.pop('tts_mode', None)
@@ -79,6 +85,7 @@ async def main_handler(update: Update, context):
         return
 
     if text == "📅 حالة الاشتراك":
+        context.user_data.pop('ai_mode', None)   # ← إيقاف الذكاء الاصطناعي
         rem = get_remaining_time(user_id)
         if rem and rem > 0:
             await update.message.reply_text(
@@ -93,6 +100,7 @@ async def main_handler(update: Update, context):
         return
 
     if text == "📢 قناة البوت":
+        context.user_data.pop('ai_mode', None)   # ← إيقاف الذكاء الاصطناعي
         await update.message.reply_text(
             f"📢 قناة البوت: {CHANNEL_USERNAME}",
             reply_markup=main_kb(user_id, is_admin)
@@ -100,6 +108,7 @@ async def main_handler(update: Update, context):
         return
 
     if text == "💎 تفعيل الاشتراك":
+        context.user_data.pop('ai_mode', None)   # ← إيقاف الذكاء الاصطناعي
         rem = get_remaining_time(user_id)
         if rem and rem > 0:
             await update.message.reply_text(
@@ -119,11 +128,13 @@ async def main_handler(update: Update, context):
         return
 
     if text == "👤 المطور":
+        context.user_data.pop('ai_mode', None)   # ← إيقاف الذكاء الاصطناعي
         await dev_cmd(update, context)
         return
 
     if text == "👑 لوحة التحكم":
-        if is_admin or user_id == DEVELOPER_ID:
+        context.user_data.pop('ai_mode', None)   # ← إيقاف الذكاء الاصطناعي
+        if is_admin:
             await admin_panel(update, context)
         else:
             await update.message.reply_text(
@@ -132,8 +143,8 @@ async def main_handler(update: Update, context):
             )
         return
 
-    # 2️⃣ الأوامر الإدارية (مع التحقق من وجود وضع نشط)
-    if is_admin or user_id == DEVELOPER_ID:
+    # ========== الأوامر الإدارية (إذا كان المشرف في وضع إداري) ==========
+    if is_admin:
         admin_modes = [
             'broadcast_mode', 'add_ch_mode', 'add_admin_mode', 'ban_mode',
             'unban_mode', 'activate_sub_mode', 'set_trial_mode',
@@ -141,24 +152,24 @@ async def main_handler(update: Update, context):
             'set_days_mode', 'set_warning_mode'
         ]
         if any(k in context.user_data for k in admin_modes):
+            # سيتم مسح ai_mode داخل handle_admin_text نفسه (لأننا أضفناه هناك أيضاً)
             await handle_admin_text(update, context)
             return
 
-    # 3️⃣ أوضاع خاصة (توليد صورة، تعديل، صوت)
+    # ========== أوضاع خاصة (توليد، تعديل، صوت) ==========
     if context.user_data.get('gen_img'):
         await handle_gen_img(update, context)
         return
-
     if context.user_data.get('edit_action'):
         await handle_edit_input(update, context)
         return
-
     if context.user_data.get('tts_mode'):
         await handle_tts_text(update, context)
         return
 
-    # 4️⃣ وضع الذكاء الاصطناعي
+    # ========== وضع الذكاء الاصطناعي ==========
     if context.user_data.get('ai_mode'):
+        # أوامر إنهاء المحادثة
         if text in ["رجوع", "/end", "خروج", "إنهاء", "🔙"]:
             await update.message.reply_text(
                 "🔙 تم إنهاء المحادثة.",
@@ -171,10 +182,10 @@ async def main_handler(update: Update, context):
         await handle_ai_msg(update, context)
         return
 
-    # 5️⃣ أي رسالة أخرى
+    # ========== أي رسالة أخرى ==========
     if len(text) > 2 and not text.startswith('/'):
         await update.message.reply_text(
-            "👋 اضغط **أسأل الذكاء الاصطناعي** لبدء محادثة.",
+            "👋 اضغط **أسأل الذكاء الاصطناعي** لبدء محادثة، أو استخدم الأزرار الأخرى.",
             reply_markup=main_kb(user_id, is_admin)
         )
 
@@ -183,9 +194,11 @@ def main():
     print("🤖 بوت الذكاء الاصطناعي المتكامل (لوحة ثابتة)")
     print("👤 المطور: @xxhhjl")
     print("="*60)
+    
     init_db()
+    add_user(DEVELOPER_ID, "developer", "Developer")
     add_admin(DEVELOPER_ID)
-
+    
     app = (
         Application.builder()
         .token(BOT_TOKEN)
@@ -202,6 +215,7 @@ def main():
     app.add_handler(CallbackQueryHandler(admin_cb, pattern="^(admin_|activate_monthly_|activate_yearly_)"))
     app.add_handler(CallbackQueryHandler(img_edit_cb, pattern="^edit_"))
     app.add_handler(CallbackQueryHandler(handle_voice_select, pattern="^(voice_|back_main)"))
+    
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.Document.ALL, lambda u, c: u.message.reply_text("📂 تم استلام الملف")))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, main_handler))

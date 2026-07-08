@@ -6,6 +6,9 @@ from keyboards import admin_kb, user_management_kb, subscription_management_kb, 
 from config import DEVELOPER_ID
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # إيقاف الذكاء الاصطناعي فور الدخول إلى لوحة التحكم
+    context.user_data.pop('ai_mode', None)
+    
     user_id = update.effective_user.id
     if not is_user_admin(user_id):
         await update.message.reply_text("🚫 غير مصرح.")
@@ -13,6 +16,9 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("👑 لوحة التحكم:", reply_markup=admin_kb())
 
 async def admin_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # إيقاف الذكاء الاصطناعي عند الضغط على أي زر داخل لوحة التحكم
+    context.user_data.pop('ai_mode', None)
+    
     q = update.callback_query
     await q.answer()
     if not is_user_admin(q.from_user.id):
@@ -107,6 +113,9 @@ async def admin_cb(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text("👑 لوحة التحكم:", reply_markup=admin_kb())
 
 async def handle_admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # إيقاف الذكاء الاصطناعي عند استقبال أي نص في الوضع الإداري
+    context.user_data.pop('ai_mode', None)
+    
     user_id = update.effective_user.id
     if not is_user_admin(user_id):
         return
